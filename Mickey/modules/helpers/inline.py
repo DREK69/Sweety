@@ -1,6 +1,7 @@
 from pyrogram.types import InlineKeyboardButton
 
 from config import OWNER_USERNAME
+from Mickey import MickeyBot
 
 DEV_OP = [
     [
@@ -8,6 +9,31 @@ DEV_OP = [
     ],
     [
         InlineKeyboardButton(text="🚀 ʜᴇʟᴘ & ᴄᴍᴅs 🚀", callback_data="HELP"),
+    ],
+]
+
+PNG_BTN = [
+    [
+        InlineKeyboardButton(text="🚀 ʜᴇʟᴘ & ᴄᴍᴅs 🚀", callback_data="HELP"),
+    ],
+    [
+        InlineKeyboardButton(text="❄️ ᴄʟᴏsᴇ ❄️", callback_data="CLOSE"),
+    ],
+]
+
+HELP_START = [
+    [
+        InlineKeyboardButton(text="🚀 ʜᴇʟᴘ 🚀", callback_data="HELP"),
+        InlineKeyboardButton(text="❄️ ᴄʟᴏsᴇ ❄️", callback_data="CLOSE"),
+    ],
+]
+
+HELP_BUTN = [
+    [
+        InlineKeyboardButton(
+            text="🚀 ʜᴇʟᴘ 🚀", url=f"https://t.me/{MickeyBot.username}?start=help"
+        ),
+        InlineKeyboardButton(text="❄️ ᴄʟᴏsᴇ ❄️", callback_data="CLOSE"),
     ],
 ]
 
