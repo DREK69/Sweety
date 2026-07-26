@@ -11,7 +11,7 @@ OWNER_ID = int(getenv("OWNER_ID", 5350929381))
 MONGO_URL = getenv("MONGO_URL", None)
 SUPPORT_GRP = getenv("SUPPORT_GRP", "Nexa_Verse")
 UPDATE_CHNL = getenv("UPDATE_CHNL", "DadEyeBotz")
-OWNER_USERNAME = getenv("OWNER_USERNAME", "Dev_Arora_0981")
+OWNER_USERNAME = getenv("OWNER_USERNAME", "PB_SMILE_0007")
 GROQ_API_KEY = getenv("GROQ_API_KEY", None)
 
 IMG = [
