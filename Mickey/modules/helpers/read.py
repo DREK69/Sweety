@@ -3,11 +3,13 @@ from Mickey import MickeyBot
 
 
 def _table(rows):
-    width = max(len(cmd) for cmd, _ in rows) + 3
-    lines = [f"{'Command':<{width}}Description"]
-    for cmd, desc in rows:
-        lines.append(f"{cmd:<{width}}{desc}")
-    return "<pre>" + "\n".join(lines) + "</pre>"
+    return "\n\n".join(f"<b><code>{cmd}</code></b>\n{desc}" for cmd, desc in rows)
+
+
+def _rich_table(rows):
+    head = "<tr><th>Command</th><th>Description</th></tr>"
+    body = "".join(f"<tr><td><code>{c}</code></td><td>{d}</td></tr>" for c, d in rows)
+    return f"<table>{head}{body}</table>"
 
 
 START = f"""👋 Hey, I am <b>{MickeyBot.name}</b>
@@ -60,3 +62,26 @@ It replies automatically to users and helps activate learning in your groups.
 Written in <a href="https://www.python.org">Python</a> with <a href="https://www.mongodb.com">MongoDB</a> as a database.
 
 Use the buttons below for basic help and info about {MickeyBot.name}."""
+
+HELP_RICH_HTML = f"""<h3>User Commands</h3>
+<p>Commands available to all members of the chat.</p>
+<details open><summary>Chatbot</summary>
+{_rich_table([("/chatbot", "Enable or disable the chatbot")])}
+</details>
+<details><summary>Tools</summary>
+<p>Tap the Tools button below.</p>
+</details>
+<p><i>© @{OWNER_USERNAME}</i></p>"""
+
+TOOLS_RICH_HTML = f"""<h3>Tools</h3>
+{_rich_table([
+    ("/repo", f"Get the source code of {MickeyBot.name}"),
+    ("/ping", f"Check the ping of {MickeyBot.name}"),
+    ("/id", "Get your user, chat & msg ID"),
+])}
+<p><i>© @{OWNER_USERNAME}</i></p>"""
+
+CHATBOT_RICH_HTML = f"""<h3>Chatbot</h3>
+{_rich_table([("/chatbot", "Enable or disable the chatbot")])}
+<p>Works in groups and in private.</p>
+<p><i>© @{OWNER_USERNAME}</i></p>"""
