@@ -1,18 +1,19 @@
 import random
+import re
+import time
+import asyncio
 
 from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.enums import ChatAction, ChatMemberStatus as CMS, ChatType
-from pyrogram.types import InlineKeyboardMarkup, Message
+from pyrogram.types import ChatMemberUpdated, InlineKeyboardMarkup, Message
 
 from config import MONGO_URL
 from Mickey import MickeyBot
-from Mickey.modules.helpers import CHATBOT_ON
-from Mickey.modules.helpers.moderation import is_toxic
-from pyrogram.enums import ChatMemberStatus as CMS
-from pyrogram.types import ChatMemberUpdated
 from Mickey.database.chats import add_served_chat, remove_served_chat
 from Mickey.database.users import add_served_user
+from Mickey.modules.helpers import CHATBOT_ON
+from Mickey.modules.helpers.moderation import is_toxic
 
 _mongo = MongoClient(MONGO_URL)
 chatai = _mongo["Word"]["WordDb"]
@@ -20,6 +21,10 @@ vick = _mongo["VickDb"]["Vick"]
 reactions_db = _mongo["Reactions"]["ReactionsDb"]
 
 REACTION_EMOJIS = ["❤️", "🔥", "😁", "👍", "😂", "😮"]
+COOLDOWN_SECONDS = 3
+
+LAST_REPLY_TIME = {}
+LAST_RESPONSE = {}
 
 
 def is_command(text: str) -> bool:
@@ -30,6 +35,19 @@ def is_command(text: str) -> bool:
 
 def reactions_enabled(chat_id: int) -> bool:
     return bool(reactions_db.find_one({"chat_id": chat_id}))
+
+
+def normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", text.strip())
+
+
+def build_trigger_query(text: str, chat_id: int, chat_scoped: bool) -> dict:
+    tokens = [re.escape(tok) for tok in normalize(text).split(" ")]
+    pattern = "^" + r"\s+".join(tokens) + "$"
+    query = {"trigger": {"$regex": pattern, "$options": "i"}}
+    if chat_scoped:
+        query["chat_id"] = chat_id
+    return query
 
 
 @MickeyBot.on_cmd("chatbot")
@@ -96,17 +114,26 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
     if is_command(message.text):
         return
 
-    query = {"trigger": message.text}
-    if chat_scoped:
-        query["chat_id"] = message.chat.id
+    now = time.monotonic()
+    if now - LAST_REPLY_TIME.get(message.chat.id, 0) < COOLDOWN_SECONDS:
+        return
 
+    query = build_trigger_query(message.text, message.chat.id, chat_scoped)
     matches = list(chatai.find(query))
     if not matches:
         return
 
+    last_response = LAST_RESPONSE.get(message.chat.id)
+    pool = [m for m in matches if m["response"] != last_response] or matches
+    pick = random.choice(pool)
+
+    delay = min(0.4 + len(pick["response"]) * 0.03, 3.0)
     await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-    pick = random.choice(matches)
+    await asyncio.sleep(delay)
     await message.reply_text(pick["response"])
+
+    LAST_REPLY_TIME[message.chat.id] = time.monotonic()
+    LAST_RESPONSE[message.chat.id] = pick["response"]
 
     if reactions_enabled(message.chat.id):
         try:
@@ -135,7 +162,8 @@ async def pvt_reply(client: Client, message: Message):
     if vick.find_one({"chat_id": message.chat.id}):
         return
     await _lookup_and_respond(client, message, chat_scoped=False)
-    
+
+
 @MickeyBot.on_message(filters.group, group=-1)
 async def track_chat(_, message: Message):
     await add_served_chat(message.chat.id)
