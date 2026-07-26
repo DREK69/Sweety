@@ -1,7 +1,5 @@
-
-
-from pyrogram.enums import ChatMemberStatus as CMS
-from pyrogram.types import CallbackQuery, InlineKeyboardMarkup, InputRichMessage
+from pyrogram.enums import ChatMemberStatus as CMS, ChatType, ParseMode
+from pyrogram.types import CallbackQuery, InlineKeyboardMarkup
 
 from Mickey import MickeyBot
 from Mickey.database import vick
@@ -21,86 +19,62 @@ from Mickey.modules.helpers import (
     TOOLS_DATA_READ,
 )
 
+TEXT_ROUTES = {
+    "HELP": (HELP_READ, HELP_BTN),
+    "BACK": (START, DEV_OP),
+    "SOURCE": (SOURCE_READ, BACK),
+    "ABOUT": (ABOUT_READ, ABOUT_BTN),
+    "ADMINS": (ADMIN_READ, MUSIC_BACK_BTN),
+    "TOOLS_DATA": (TOOLS_DATA_READ, CHATBOT_BACK),
+    "BACK_HELP": (HELP_READ, HELP_BTN),
+    "CHATBOT_CMD": (CHATBOT_READ, CHATBOT_BACK),
+    "CHATBOT_BACK": (HELP_READ, HELP_BTN),
+}
+
 
 @MickeyBot.on_callback_query()
 async def cb_handler(_, query: CallbackQuery):
-    if query.data == "HELP":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=HELP_READ),
-            reply_markup=InlineKeyboardMarkup(HELP_BTN),
-        )
-    elif query.data == "CLOSE":
+    data = query.data
+
+    if data == "CLOSE":
         await query.message.delete()
-        await query.answer("ᴄʟᴏsᴇᴅ ᴍᴇɴᴜ!", show_alert=True)
-    elif query.data == "BACK":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=START),
-            reply_markup=InlineKeyboardMarkup(DEV_OP),
+        return await query.answer("ᴄʟᴏsᴇᴅ ᴍᴇɴᴜ!", show_alert=True)
+
+    if data in TEXT_ROUTES:
+        text, buttons = TEXT_ROUTES[data]
+        return await query.message.edit_text(
+            text,
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(buttons),
+            disable_web_page_preview=True,
         )
-    elif query.data == "SOURCE":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=SOURCE_READ),
-            reply_markup=InlineKeyboardMarkup(BACK),
-        )
-    elif query.data == "ABOUT":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=ABOUT_READ),
-            reply_markup=InlineKeyboardMarkup(ABOUT_BTN),
-        )
-    elif query.data == "ADMINS":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=ADMIN_READ),
-            reply_markup=InlineKeyboardMarkup(MUSIC_BACK_BTN),
-        )
-    elif query.data == "TOOLS_DATA":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=TOOLS_DATA_READ),
-            reply_markup=InlineKeyboardMarkup(CHATBOT_BACK),
-        )
-    elif query.data == "BACK_HELP":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=HELP_READ),
-            reply_markup=InlineKeyboardMarkup(HELP_BTN),
-        )
-    elif query.data == "CHATBOT_CMD":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=CHATBOT_READ),
-            reply_markup=InlineKeyboardMarkup(CHATBOT_BACK),
-        )
-    elif query.data == "CHATBOT_BACK":
-        await query.message.edit_text(
-            rich_message=InputRichMessage(html=HELP_READ),
-            reply_markup=InlineKeyboardMarkup(HELP_BTN),
-        )
-    elif query.data == "addchat":
-        user_id = query.from_user.id
-        user_status = (await query.message.chat.get_member(user_id)).status
-        if user_status not in [CMS.OWNER, CMS.ADMINISTRATOR]:
-            return await query.answer(
-                "ʏᴏᴜ'ʀᴇ ɴᴏᴛ ᴇᴠᴇɴ ᴀɴ ᴀᴅᴍɪɴ, ᴅᴏɴ'ᴛ ᴛʀʏ ᴛʜɪs!",
-                show_alert=True,
-            )
-        is_vick = vick.find_one({"chat_id": query.message.chat.id})
-        if not is_vick:
-            await query.edit_message_text("**ᴄʜᴀᴛ-ʙᴏᴛ ᴀʟʀᴇᴀᴅʏ ᴇɴᴀʙʟᴇᴅ.**")
+
+    if data in ("addchat", "rmchat"):
+        chat = query.message.chat
+        if chat.type != ChatType.PRIVATE:
+            status = (await chat.get_member(query.from_user.id)).status
+            if status not in (CMS.OWNER, CMS.ADMINISTRATOR):
+                return await query.answer(
+                    "ʏᴏᴜ'ʀᴇ ɴᴏᴛ ᴇᴠᴇɴ ᴀɴ ᴀᴅᴍɪɴ, ᴅᴏɴ'ᴛ ᴛʀʏ ᴛʜɪs!",
+                    show_alert=True,
+                )
+
+        is_disabled = bool(vick.find_one({"chat_id": chat.id}))
+
+        if data == "addchat":
+            if not is_disabled:
+                await query.edit_message_text("**ᴄʜᴀᴛ-ʙᴏᴛ ᴀʟʀᴇᴀᴅʏ ᴇɴᴀʙʟᴇᴅ.**")
+            else:
+                vick.delete_one({"chat_id": chat.id})
+                await query.edit_message_text(
+                    f"**ᴄʜᴀᴛ-ʙᴏᴛ ᴇɴᴀʙʟᴇᴅ ʙʏ** {query.from_user.mention}."
+                )
         else:
-            vick.delete_one({"chat_id": query.message.chat.id})
-            await query.edit_message_text(
-                f"**ᴄʜᴀᴛ-ʙᴏᴛ ᴇɴᴀʙʟᴇᴅ ʙʏ** {query.from_user.mention}."
-            )
-    elif query.data == "rmchat":
-        user_id = query.from_user.id
-        user_status = (await query.message.chat.get_member(user_id)).status
-        if user_status not in [CMS.OWNER, CMS.ADMINISTRATOR]:
-            return await query.answer(
-                "ʏᴏᴜ'ʀᴇ ɴᴏᴛ ᴇᴠᴇɴ ᴀɴ ᴀᴅᴍɪɴ, ᴅᴏɴ'ᴛ ᴛʀʏ ᴛʜɪs!",
-                show_alert=True,
-            )
-        is_vick = vick.find_one({"chat_id": query.message.chat.id})
-        if not is_vick:
-            vick.insert_one({"chat_id": query.message.chat.id})
-            await query.edit_message_text(
-                f"**ᴄʜᴀᴛ-ʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ ʙʏ** {query.from_user.mention}."
-            )
-        else:
-            await query.edit_message_text("**ᴄʜᴀᴛ-ʙᴏᴛ ᴀʟʀᴇᴀᴅʏ ᴅɪsᴀʙʟᴇᴅ.**")
+            if not is_disabled:
+                vick.insert_one({"chat_id": chat.id})
+                await query.edit_message_text(
+                    f"**ᴄʜᴀᴛ-ʙᴏᴛ ᴅɪsᴀʙʟᴇᴅ ʙʏ** {query.from_user.mention}."
+                )
+            else:
+                await query.edit_message_text("**ᴄʜᴀᴛ-ʙᴏᴛ ᴀʟʀᴇᴀᴅʏ ᴅɪsᴀʙʟᴇᴅ.**")
+                
