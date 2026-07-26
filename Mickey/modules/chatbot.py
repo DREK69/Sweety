@@ -1,6 +1,5 @@
 import random
 
-from Abg import adminsOnly
 from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.enums import ChatAction, ChatMemberStatus as CMS, ChatType
@@ -30,7 +29,7 @@ def reactions_enabled(chat_id: int) -> bool:
 
 
 @MickeyBot.on_cmd("chatbot", group_only=True)
-@adminsOnly("can_delete_messages")
+@MickeyBot.adminsOnly(permissions="can_delete_messages", is_both=True)
 async def chaton_(_, m: Message):
     await m.reply_text(
         f"ᴄʜᴀᴛ: {m.chat.title}\n**ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴩᴛɪᴏɴ ᴛᴏ ᴇɴᴀʙʟᴇ/ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ.**",
