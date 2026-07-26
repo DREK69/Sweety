@@ -17,7 +17,7 @@ DEV_OP = [
     [
         InlineKeyboardButton(
             text="Add Me To Group",
-            url=f"https://t.me/{BOT_USERNAME}?startgroup=true"
+            url=f"https://t.me/{MickeyBot.username}?startgroup=true"
         ),
     ],
 ]
