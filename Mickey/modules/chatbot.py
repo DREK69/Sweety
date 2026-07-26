@@ -1,7 +1,6 @@
-
 import random
 
-from Abg.chat_status import adminsOnly
+from Abg import adminsOnly
 from pymongo import MongoClient
 from pyrogram import Client, filters
 from pyrogram.enums import ChatAction, ChatMemberStatus as CMS, ChatType
@@ -126,3 +125,4 @@ async def auto_reply(client: Client, message: Message):
 )
 async def pvt_reply(client: Client, message: Message):
     await _lookup_and_respond(client, message, chat_scoped=False)
+    
