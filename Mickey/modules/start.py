@@ -1,10 +1,9 @@
-
 import asyncio
 import random
 
 from pyrogram import filters
 from pyrogram.enums import ChatType
-from pyrogram.types import InlineKeyboardMarkup, InputRichMessage, Message
+from pyrogram.types import InlineKeyboardMarkup, Message
 
 from config import EMOJIOS, IMG, STICKER
 from Mickey import MickeyBot
@@ -25,9 +24,7 @@ from Mickey.modules.helpers import (
 @MickeyBot.on_cmd(["start", "aistart"])
 async def start(client: MickeyBot, m: Message):
     if m.chat.type == ChatType.PRIVATE:
-        accha = await m.reply_text(
-            text=random.choice(EMOJIOS),
-        )
+        accha = await m.reply_text(text=random.choice(EMOJIOS))
         await asyncio.sleep(1.3)
         await accha.edit("__ᴅιиg ᴅσиg ꨄ︎ ѕтαятιиg..__")
         await asyncio.sleep(0.2)
@@ -39,10 +36,10 @@ async def start(client: MickeyBot, m: Message):
         umm = await m.reply_sticker(sticker=random.choice(STICKER))
         await asyncio.sleep(2)
         await umm.delete()
-        await client.send_rich_message(
-            chat_id=m.chat.id,
-            rich_message=InputRichMessage(html=START),
+        await m.reply_text(
+            START,
             reply_markup=InlineKeyboardMarkup(DEV_OP),
+            disable_web_page_preview=True,
         )
         await add_served_user(m.from_user.id)
     else:
@@ -57,10 +54,10 @@ async def start(client: MickeyBot, m: Message):
 @MickeyBot.on_cmd("help")
 async def help(client: MickeyBot, m: Message):
     if m.chat.type == ChatType.PRIVATE:
-        await client.send_rich_message(
-            chat_id=m.chat.id,
-            rich_message=InputRichMessage(html=HELP_READ),
+        await m.reply_text(
+            HELP_READ,
             reply_markup=InlineKeyboardMarkup(HELP_BTN),
+            disable_web_page_preview=True,
         )
         await add_served_user(m.from_user.id)
     else:
@@ -74,10 +71,10 @@ async def help(client: MickeyBot, m: Message):
 
 @MickeyBot.on_cmd("repo")
 async def repo(client: MickeyBot, m: Message):
-    await client.send_rich_message(
-        chat_id=m.chat.id,
-        rich_message=InputRichMessage(html=SOURCE_READ),
+    await m.reply_text(
+        SOURCE_READ,
         reply_markup=InlineKeyboardMarkup(CLOSE_BTN),
+        disable_web_page_preview=True,
     )
 
 
@@ -85,3 +82,4 @@ async def repo(client: MickeyBot, m: Message):
 async def welcome(_, m: Message):
     for member in m.new_chat_members:
         await m.reply_photo(photo=random.choice(IMG), caption="**ʜᴇʏ, ᴘᴍ ᴍᴇ ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!**")
+        
