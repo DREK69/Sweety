@@ -9,6 +9,10 @@ from config import MONGO_URL
 from Mickey import MickeyBot
 from Mickey.modules.helpers import CHATBOT_ON
 from Mickey.modules.helpers.moderation import is_toxic
+from pyrogram.enums import ChatMemberStatus as CMS
+from pyrogram.types import ChatMemberUpdated
+from Mickey.database.chats import add_served_chat, remove_served_chat
+from Mickey.database.users import add_served_user
 
 _mongo = MongoClient(MONGO_URL)
 chatai = _mongo["Word"]["WordDb"]
@@ -132,3 +136,24 @@ async def pvt_reply(client: Client, message: Message):
         return
     await _lookup_and_respond(client, message, chat_scoped=False)
     
+@MickeyBot.on_message(filters.group, group=-1)
+async def track_chat(_, message: Message):
+    await add_served_chat(message.chat.id)
+
+
+@MickeyBot.on_message(filters.private, group=-1)
+async def track_user(_, message: Message):
+    if message.from_user:
+        await add_served_user(message.from_user.id)
+
+
+@MickeyBot.on_chat_member_updated()
+async def on_bot_membership_change(_, cmu: ChatMemberUpdated):
+    if not cmu.new_chat_member or not cmu.new_chat_member.user.is_self:
+        return
+
+    status = cmu.new_chat_member.status
+    if status in (CMS.LEFT, CMS.BANNED):
+        await remove_served_chat(cmu.chat.id)
+    elif status in (CMS.MEMBER, CMS.ADMINISTRATOR):
+        await add_served_chat(cmu.chat.id)
