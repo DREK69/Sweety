@@ -25,3 +25,13 @@ Tools
 /id — Get your user, chat and message ID.
 
 © @{OWNER_USERNAME}"""
+
+SOURCE_READ = f"""Source Code
+
+The source code of {MickeyBot.name} is given below.
+Please fork the repo and give it a star.
+
+contact puppy
+
+© @{OWNER_USERNAME}"""
+
