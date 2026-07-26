@@ -1,6 +1,12 @@
 from pyrogram.enums import ChatMemberStatus as CMS, ChatType, ParseMode
 from pyrogram.types import CallbackQuery, InlineKeyboardMarkup
 
+try:
+    from pyrogram.types import InputRichMessage
+    RICH_SUPPORTED = True
+except ImportError:
+    RICH_SUPPORTED = False
+
 from Mickey import MickeyBot
 from Mickey.database import vick
 from Mickey.modules.helpers import (
@@ -10,26 +16,49 @@ from Mickey.modules.helpers import (
     BACK,
     CHATBOT_BACK,
     CHATBOT_READ,
+    CHATBOT_RICH_HTML,
     DEV_OP,
     HELP_BTN,
     HELP_READ,
+    HELP_RICH_HTML,
     MUSIC_BACK_BTN,
     SOURCE_READ,
     START,
     TOOLS_DATA_READ,
+    TOOLS_RICH_HTML,
 )
 
 TEXT_ROUTES = {
-    "HELP": (HELP_READ, HELP_BTN),
-    "BACK": (START, DEV_OP),
-    "SOURCE": (SOURCE_READ, BACK),
-    "ABOUT": (ABOUT_READ, ABOUT_BTN),
-    "ADMINS": (ADMIN_READ, MUSIC_BACK_BTN),
-    "TOOLS_DATA": (TOOLS_DATA_READ, CHATBOT_BACK),
-    "BACK_HELP": (HELP_READ, HELP_BTN),
-    "CHATBOT_CMD": (CHATBOT_READ, CHATBOT_BACK),
-    "CHATBOT_BACK": (HELP_READ, HELP_BTN),
+    "HELP": (HELP_READ, HELP_RICH_HTML, HELP_BTN),
+    "BACK": (START, None, DEV_OP),
+    "SOURCE": (SOURCE_READ, None, BACK),
+    "ABOUT": (ABOUT_READ, None, ABOUT_BTN),
+    "ADMINS": (ADMIN_READ, None, MUSIC_BACK_BTN),
+    "TOOLS_DATA": (TOOLS_DATA_READ, TOOLS_RICH_HTML, CHATBOT_BACK),
+    "BACK_HELP": (HELP_READ, HELP_RICH_HTML, HELP_BTN),
+    "CHATBOT_CMD": (CHATBOT_READ, CHATBOT_RICH_HTML, CHATBOT_BACK),
+    "CHATBOT_BACK": (HELP_READ, HELP_RICH_HTML, HELP_BTN),
 }
+
+
+async def _render(query, plain_text, rich_html, buttons):
+    markup = InlineKeyboardMarkup(buttons)
+
+    if RICH_SUPPORTED and rich_html:
+        try:
+            return await query.message.edit_text(
+                rich_message=InputRichMessage(html=rich_html),
+                reply_markup=markup,
+            )
+        except TypeError:
+            pass
+
+    return await query.message.edit_text(
+        plain_text,
+        parse_mode=ParseMode.HTML,
+        reply_markup=markup,
+        disable_web_page_preview=True,
+    )
 
 
 @MickeyBot.on_callback_query()
@@ -41,13 +70,8 @@ async def cb_handler(_, query: CallbackQuery):
         return await query.answer("ᴄʟᴏsᴇᴅ ᴍᴇɴᴜ!", show_alert=True)
 
     if data in TEXT_ROUTES:
-        text, buttons = TEXT_ROUTES[data]
-        return await query.message.edit_text(
-            text,
-            parse_mode=ParseMode.HTML,
-            reply_markup=InlineKeyboardMarkup(buttons),
-            disable_web_page_preview=True,
-        )
+        text, rich_html, buttons = TEXT_ROUTES[data]
+        return await _render(query, text, rich_html, buttons)
 
     if data in ("addchat", "rmchat"):
         chat = query.message.chat
