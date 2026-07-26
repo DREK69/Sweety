@@ -5,10 +5,20 @@ from Mickey import MickeyBot
 
 DEV_OP = [
     [
-        InlineKeyboardButton(text="🥀 ᴏᴡɴᴇʀ 🥀", url=f"https://t.me/{OWNER_USERNAME}"),
+        InlineKeyboardButton(
+            text="Owner",
+            url=f"https://t.me/{OWNER_USERNAME}"
+        ),
+        InlineKeyboardButton(
+            text="Help",
+            callback_data="HELP"
+        ),
     ],
     [
-        InlineKeyboardButton(text="🚀 ʜᴇʟᴘ & ᴄᴍᴅs 🚀", callback_data="HELP"),
+        InlineKeyboardButton(
+            text="Add Me To Group",
+            url=f"https://t.me/{BOT_USERNAME}?startgroup=true"
+        ),
     ],
 ]
 
