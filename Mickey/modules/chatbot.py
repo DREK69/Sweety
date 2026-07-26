@@ -7,7 +7,7 @@ from pyrogram.types import InlineKeyboardMarkup, Message
 
 from config import MONGO_URL
 from Mickey import MickeyBot
-from Mickey.modules.helpers import CHATBOT_ON, is_admins
+from Mickey.modules.helpers import CHATBOT_ON
 from Mickey.modules.helpers.moderation import is_toxic
 
 _mongo = MongoClient(MONGO_URL)
@@ -28,11 +28,16 @@ def reactions_enabled(chat_id: int) -> bool:
     return bool(reactions_db.find_one({"chat_id": chat_id}))
 
 
-@MickeyBot.on_cmd("chatbot", group_only=True)
-@MickeyBot.adminsOnly(permissions="can_delete_messages", is_both=True)
+@MickeyBot.on_cmd("chatbot")
 async def chaton_(_, m: Message):
+    if m.chat.type != ChatType.PRIVATE:
+        member = await m.chat.get_member(m.from_user.id)
+        if member.status not in (CMS.OWNER, CMS.ADMINISTRATOR):
+            return await m.reply_text("**ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    chat_label = "your private chat" if m.chat.type == ChatType.PRIVATE else m.chat.title
     await m.reply_text(
-        f"ᴄʜᴀᴛ: {m.chat.title}\n**ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴩᴛɪᴏɴ ᴛᴏ ᴇɴᴀʙʟᴇ/ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ.**",
+        f"ᴄʜᴀᴛ: {chat_label}\n**ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴩᴛɪᴏɴ ᴛᴏ ᴇɴᴀʙʟᴇ/ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ.**",
         reply_markup=InlineKeyboardMarkup(CHATBOT_ON),
     )
 
@@ -123,5 +128,7 @@ async def auto_reply(client: Client, message: Message):
     group=5,
 )
 async def pvt_reply(client: Client, message: Message):
+    if vick.find_one({"chat_id": message.chat.id}):
+        return
     await _lookup_and_respond(client, message, chat_scoped=False)
     
