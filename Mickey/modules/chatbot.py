@@ -1,17 +1,33 @@
-# Don't remove This Line From Here. Tg: @Dev_Arora_0981 | @DevArora0981
-# Github :- Devarora-0981 | Devarora2604
 
 import random
-from Abg.chat_status import adminsOnly
 
+from Abg.chat_status import adminsOnly
 from pymongo import MongoClient
 from pyrogram import Client, filters
-from pyrogram.enums import ChatAction
+from pyrogram.enums import ChatAction, ChatMemberStatus as CMS, ChatType
 from pyrogram.types import InlineKeyboardMarkup, Message
 
 from config import MONGO_URL
 from Mickey import MickeyBot
 from Mickey.modules.helpers import CHATBOT_ON, is_admins
+from Mickey.modules.helpers.moderation import is_toxic
+
+_mongo = MongoClient(MONGO_URL)
+chatai = _mongo["Word"]["WordDb"]
+vick = _mongo["VickDb"]["Vick"]
+reactions_db = _mongo["Reactions"]["ReactionsDb"]
+
+REACTION_EMOJIS = ["❤️", "🔥", "😁", "👍", "😂", "😮"]
+
+
+def is_command(text: str) -> bool:
+    if not text:
+        return False
+    return text[0] in "!/?@#"
+
+
+def reactions_enabled(chat_id: int) -> bool:
+    return bool(reactions_db.find_one({"chat_id": chat_id}))
 
 
 @MickeyBot.on_cmd("chatbot", group_only=True)
@@ -21,279 +37,92 @@ async def chaton_(_, m: Message):
         f"ᴄʜᴀᴛ: {m.chat.title}\n**ᴄʜᴏᴏsᴇ ᴀɴ ᴏᴩᴛɪᴏɴ ᴛᴏ ᴇɴᴀʙʟᴇ/ᴅɪsᴀʙʟᴇ ᴄʜᴀᴛʙᴏᴛ.**",
         reply_markup=InlineKeyboardMarkup(CHATBOT_ON),
     )
-    return
+
+
+@MickeyBot.on_cmd("reaction")
+async def reaction_toggle(_, m: Message):
+    if m.chat.type != ChatType.PRIVATE:
+        member = await m.chat.get_member(m.from_user.id)
+        if member.status not in (CMS.OWNER, CMS.ADMINISTRATOR):
+            return await m.reply_text("**ᴏɴʟʏ ᴀᴅᴍɪɴs ᴄᴀɴ ᴜsᴇ ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ.**")
+
+    args = m.text.split(None, 1)
+    if len(args) < 2 or args[1].strip().lower() not in ("on", "off"):
+        return await m.reply_text("**ᴜsᴀɢᴇ:** /reaction [on/off]")
+
+    mode = args[1].strip().lower()
+    if mode == "on":
+        if not reactions_enabled(m.chat.id):
+            reactions_db.insert_one({"chat_id": m.chat.id})
+        await m.reply_text("**ʀᴇᴀᴄᴛɪᴏɴs ᴇɴᴀʙʟᴇᴅ.**")
+    else:
+        reactions_db.delete_one({"chat_id": m.chat.id})
+        await m.reply_text("**ʀᴇᴀᴄᴛɪᴏɴs ᴅɪsᴀʙʟᴇᴅ.**")
 
 
 @MickeyBot.on_message(
-    (filters.text | filters.sticker | filters.group) & ~filters.private & ~filters.bot, group=4
-)
-async def chatbot_text(client: Client, message: Message):
-    try:
-        if (
-            message.text.startswith("!")
-            or message.text.startswith("/")
-            or message.text.startswith("?")
-            or message.text.startswith("@")
-            or message.text.startswith("#")
-        ):
-            return
-    except Exception:
-        pass
-    chatdb = MongoClient(MONGO_URL)
-    chatai = chatdb["Word"]["WordDb"]
-
-    if not message.reply_to_message:
-        vickdb = MongoClient(MONGO_URL)
-        vick = vickdb["VickDb"]["Vick"]
-        is_vick = vick.find_one({"chat_id": message.chat.id})
-        if not is_vick:
-            await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-            K = []
-            is_chat = chatai.find({"word": message.text})
-            k = chatai.find_one({"word": message.text})
-            if k:
-                for x in is_chat:
-                    K.append(x["text"])
-                hey = random.choice(K)
-                is_text = chatai.find_one({"text": hey})
-                Yo = is_text["check"]
-                if Yo == "sticker":
-                    await message.reply_sticker(f"{hey}")
-                if not Yo == "sticker":
-                    await message.reply_text(f"{hey}")
-
-    if message.reply_to_message:
-        vickdb = MongoClient(MONGO_URL)
-        vick = vickdb["VickDb"]["Vick"]
-        is_vick = vick.find_one({"chat_id": message.chat.id})
-        if message.reply_to_message.from_user.id == client.id:
-            if not is_vick:
-                await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-                K = []
-                is_chat = chatai.find({"word": message.text})
-                k = chatai.find_one({"word": message.text})
-                if k:
-                    for x in is_chat:
-                        K.append(x["text"])
-                    hey = random.choice(K)
-                    is_text = chatai.find_one({"text": hey})
-                    Yo = is_text["check"]
-                    if Yo == "sticker":
-                        await message.reply_sticker(f"{hey}")
-                    if not Yo == "sticker":
-                        await message.reply_text(f"{hey}")
-        if not message.reply_to_message.from_user.id == client.id:
-            if message.sticker:
-                is_chat = chatai.find_one(
-                    {
-                        "word": message.reply_to_message.text,
-                        "id": message.sticker.file_unique_id,
-                    }
-                )
-                if not is_chat:
-                    chatai.insert_one(
-                        {
-                            "word": message.reply_to_message.text,
-                            "text": message.sticker.file_id,
-                            "check": "sticker",
-                            "id": message.sticker.file_unique_id,
-                        }
-                    )
-            if message.text:
-                is_chat = chatai.find_one(
-                    {"word": message.reply_to_message.text, "text": message.text}
-                )
-                if not is_chat:
-                    chatai.insert_one(
-                        {
-                            "word": message.reply_to_message.text,
-                            "text": message.text,
-                            "check": "none",
-                        }
-                    )
-
-
-@MickeyBot.on_message(
-    (filters.sticker | filters.group | filters.text) & ~filters.private & ~filters.bot, group=4
-)
-async def chatbot_sticker(client: Client, message: Message):
-    try:
-        if (
-            message.text.startswith("!")
-            or message.text.startswith("/")
-            or message.text.startswith("?")
-            or message.text.startswith("@")
-            or message.text.startswith("#")
-        ):
-            return
-    except Exception:
-        pass
-    chatdb = MongoClient(MONGO_URL)
-    chatai = chatdb["Word"]["WordDb"]
-
-    if not message.reply_to_message:
-        vickdb = MongoClient(MONGO_URL)
-        vick = vickdb["VickDb"]["Vick"]
-        is_vick = vick.find_one({"chat_id": message.chat.id})
-        if not is_vick:
-            await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-            K = []
-            is_chat = chatai.find({"word": message.sticker.file_unique_id})
-            k = chatai.find_one({"word": message.text})
-            if k:
-                for x in is_chat:
-                    K.append(x["text"])
-                hey = random.choice(K)
-                is_text = chatai.find_one({"text": hey})
-                Yo = is_text["check"]
-                if Yo == "text":
-                    await message.reply_text(f"{hey}")
-                if not Yo == "text":
-                    await message.reply_sticker(f"{hey}")
-
-    if message.reply_to_message:
-        vickdb = MongoClient(MONGO_URL)
-        vick = vickdb["VickDb"]["Vick"]
-        is_vick = vick.find_one({"chat_id": message.chat.id})
-        if message.reply_to_message.from_user.id == Client.id:
-            if not is_vick:
-                await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-                K = []
-                is_chat = chatai.find({"word": message.text})
-                k = chatai.find_one({"word": message.text})
-                if k:
-                    for x in is_chat:
-                        K.append(x["text"])
-                    hey = random.choice(K)
-                    is_text = chatai.find_one({"text": hey})
-                    Yo = is_text["check"]
-                    if Yo == "text":
-                        await message.reply_text(f"{hey}")
-                    if not Yo == "text":
-                        await message.reply_sticker(f"{hey}")
-        if not message.reply_to_message.from_user.id == Client.id:
-            if message.text:
-                is_chat = chatai.find_one(
-                    {
-                        "word": message.reply_to_message.sticker.file_unique_id,
-                        "text": message.text,
-                    }
-                )
-                if not is_chat:
-                    toggle.insert_one(
-                        {
-                            "word": message.reply_to_message.sticker.file_unique_id,
-                            "text": message.text,
-                            "check": "text",
-                        }
-                    )
-            if message.sticker:
-                is_chat = chatai.find_one(
-                    {
-                        "word": message.reply_to_message.sticker.file_unique_id,
-                        "text": message.sticker.file_id,
-                    }
-                )
-                if not is_chat:
-                    chatai.insert_one(
-                        {
-                            "word": message.reply_to_message.sticker.file_unique_id,
-                            "text": message.sticker.file_id,
-                            "check": "none",
-                        }
-                    )
-
-
-@MickeyBot.on_message(
-    (filters.text | filters.sticker | filters.group) & ~filters.private & ~filters.bot, group=4
-)
-async def chatbot_pvt(client: Client, message: Message):
-    try:
-        if (
-            message.text.startswith("!")
-            or message.text.startswith("/")
-            or message.text.startswith("?")
-            or message.text.startswith("@")
-            or message.text.startswith("#")
-        ):
-            return
-    except Exception:
-        pass
-    chatdb = MongoClient(MONGO_URL)
-    chatai = chatdb["Word"]["WordDb"]
-    if not message.reply_to_message:
-        await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-        K = []
-        is_chat = chatai.find({"word": message.text})
-        for x in is_chat:
-            K.append(x["text"])
-        hey = random.choice(K)
-        is_text = chatai.find_one({"text": hey})
-        Yo = is_text["check"]
-        if Yo == "sticker":
-            await message.reply_sticker(f"{hey}")
-        if not Yo == "sticker":
-            await message.reply_text(f"{hey}")
-    if message.reply_to_message:
-        if message.reply_to_message.from_user.id == client.id:
-            await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-            K = []
-            is_chat = chatai.find({"word": message.text})
-            for x in is_chat:
-                K.append(x["text"])
-            hey = random.choice(K)
-            is_text = chatai.find_one({"text": hey})
-            Yo = is_text["check"]
-            if Yo == "sticker":
-                await message.reply_sticker(f"{hey}")
-            if not Yo == "sticker":
-                await message.reply_text(f"{hey}")
-
-
-@MickeyBot.on_message(
-    (filters.sticker | filters.sticker | filters.group)
-    & ~filters.private
-    & ~filters.bot,
+    filters.group & filters.text & ~filters.via_bot & ~filters.bot,
     group=4,
 )
-async def chatbot_sticker_pvt(client: Client, message: Message):
-    try:
-        if (
-            message.text.startswith("!")
-            or message.text.startswith("/")
-            or message.text.startswith("?")
-            or message.text.startswith("@")
-            or message.text.startswith("#")
-        ):
-            return
-    except Exception:
-        pass
-    chatdb = MongoClient(MONGO_URL)
-    chatai = chatdb["Word"]["WordDb"]
-    if not message.reply_to_message:
-        await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-        K = []
-        is_chat = chatai.find({"word": message.sticker.file_unique_id})
-        for x in is_chat:
-            K.append(x["text"])
-        hey = random.choice(K)
-        is_text = chatai.find_one({"text": hey})
-        Yo = is_text["check"]
-        if Yo == "text":
-            await message.reply_text(f"{hey}")
-        if not Yo == "text":
-            await message.reply_sticker(f"{hey}")
+async def teach_reply(client: Client, message: Message):
+    if not message.reply_to_message or not message.reply_to_message.text:
+        return
+    if is_command(message.text) or is_command(message.reply_to_message.text):
+        return
+
+    trigger = message.reply_to_message.text
+    response = message.text
+
+    if await is_toxic(trigger) or await is_toxic(response):
+        return
+
+    exists = chatai.find_one(
+        {"trigger": trigger, "response": response, "chat_id": message.chat.id}
+    )
+    if not exists:
+        chatai.insert_one(
+            {"chat_id": message.chat.id, "trigger": trigger, "response": response}
+        )
+
+
+async def _lookup_and_respond(client: Client, message: Message, chat_scoped: bool):
+    if is_command(message.text):
+        return
+
+    query = {"trigger": message.text}
+    if chat_scoped:
+        query["chat_id"] = message.chat.id
+
+    matches = list(chatai.find(query))
+    if not matches:
+        return
+
+    await client.send_chat_action(message.chat.id, ChatAction.TYPING)
+    pick = random.choice(matches)
+    await message.reply_text(pick["response"])
+
+    if reactions_enabled(message.chat.id):
+        try:
+            await message.react(random.choice(REACTION_EMOJIS))
+        except Exception:
+            pass
+
+
+@MickeyBot.on_message(
+    filters.group & filters.text & ~filters.via_bot & ~filters.bot,
+    group=5,
+)
+async def auto_reply(client: Client, message: Message):
     if message.reply_to_message:
-        if message.reply_to_message.from_user.id == client.id:
-            await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-            K = []
-            is_chat = chatai.find({"word": message.sticker.file_unique_id})
-            for x in is_chat:
-                K.append(x["text"])
-            hey = random.choice(K)
-            is_text = chatai.find_one({"text": hey})
-            Yo = is_text["check"]
-            if Yo == "text":
-                await message.reply_text(f"{hey}")
-            if not Yo == "text":
-                await message.reply_sticker(f"{hey}")
+        return
+    if vick.find_one({"chat_id": message.chat.id}):
+        return
+    await _lookup_and_respond(client, message, chat_scoped=True)
+
+
+@MickeyBot.on_message(
+    filters.private & filters.text & ~filters.bot,
+    group=5,
+)
+async def pvt_reply(client: Client, message: Message):
+    await _lookup_and_respond(client, message, chat_scoped=False)

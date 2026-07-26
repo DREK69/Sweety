@@ -1,12 +1,10 @@
-# Don't remove This Line From Here. Tg: @Dev_Arora_0981 | @DevArora0981
-# Github :- Devarora-0981 | Devarora2604
 
 import asyncio
 import random
 
 from pyrogram import filters
 from pyrogram.enums import ChatType
-from pyrogram.types import InlineKeyboardMarkup, Message
+from pyrogram.types import InlineKeyboardMarkup, InputRichMessage, Message
 
 from config import EMOJIOS, IMG, STICKER
 from Mickey import MickeyBot
@@ -25,7 +23,7 @@ from Mickey.modules.helpers import (
 
 
 @MickeyBot.on_cmd(["start", "aistart"])
-async def start(_, m: Message):
+async def start(client: MickeyBot, m: Message):
     if m.chat.type == ChatType.PRIVATE:
         accha = await m.reply_text(
             text=random.choice(EMOJIOS),
@@ -41,16 +39,16 @@ async def start(_, m: Message):
         umm = await m.reply_sticker(sticker=random.choice(STICKER))
         await asyncio.sleep(2)
         await umm.delete()
-        await m.reply_photo(
-            photo=random.choice(IMG),
-            caption=f"""**๏ ʜᴇʏ, ɪ ᴀᴍ {MickeyBot.name}**\n**➻ ᴀɴ ᴀɪ ʙᴀsᴇᴅ ᴄʜᴀᴛʙᴏᴛ.**\n**──────────────**\n**➻ ᴜsᴀɢᴇ /chatbot [ᴏɴ/ᴏғғ]**\n<b>||๏ ʜɪᴛ ʜᴇʟᴘ ʙᴜᴛᴛᴏɴ ғᴏʀ ʜᴇʟᴘ||</b>""",
+        await client.send_rich_message(
+            chat_id=m.chat.id,
+            rich_message=InputRichMessage(html=START),
             reply_markup=InlineKeyboardMarkup(DEV_OP),
         )
         await add_served_user(m.from_user.id)
     else:
         await m.reply_photo(
             photo=random.choice(IMG),
-            caption=START,
+            caption="**ʜᴇʏ, ᴘᴍ ᴍᴇ ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!**",
             reply_markup=InlineKeyboardMarkup(HELP_START),
         )
         await add_served_chat(m.chat.id)
@@ -59,9 +57,9 @@ async def start(_, m: Message):
 @MickeyBot.on_cmd("help")
 async def help(client: MickeyBot, m: Message):
     if m.chat.type == ChatType.PRIVATE:
-        hmm = await m.reply_photo(
-            photo=random.choice(IMG),
-            caption=HELP_READ,
+        await client.send_rich_message(
+            chat_id=m.chat.id,
+            rich_message=InputRichMessage(html=HELP_READ),
             reply_markup=InlineKeyboardMarkup(HELP_BTN),
         )
         await add_served_user(m.from_user.id)
@@ -75,15 +73,15 @@ async def help(client: MickeyBot, m: Message):
 
 
 @MickeyBot.on_cmd("repo")
-async def repo(_, m: Message):
-    await m.reply_text(
-        text=SOURCE_READ,
+async def repo(client: MickeyBot, m: Message):
+    await client.send_rich_message(
+        chat_id=m.chat.id,
+        rich_message=InputRichMessage(html=SOURCE_READ),
         reply_markup=InlineKeyboardMarkup(CLOSE_BTN),
-        disable_web_page_preview=True,
     )
 
 
 @MickeyBot.on_message(filters.new_chat_members)
 async def welcome(_, m: Message):
     for member in m.new_chat_members:
-        await m.reply_photo(photo=random.choice(IMG), caption=START)
+        await m.reply_photo(photo=random.choice(IMG), caption="**ʜᴇʏ, ᴘᴍ ᴍᴇ ᴛᴏ ɢᴇᴛ sᴛᴀʀᴛᴇᴅ!**")
