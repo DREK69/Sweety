@@ -12,7 +12,7 @@ from config import IMG, OWNER_USERNAME, STICKER
 from Mickey import MickeyBot
 from Mickey.database.chats import add_served_chat
 from Mickey.database.users import add_served_user
-from Mickey.modules.helpers import PNG_BTN
+from Mickey.modules.helpers import DEV_OP
 
 
 @MickeyBot.on_cmd("ping")
@@ -31,7 +31,7 @@ async def ping(_, message: Message):
     ms = (datetime.now() - start).microseconds / 1000
     await loda.edit_text(
         text=f"нey вαву!!\n{MickeyBot.name} ιѕ alιve 🥀 αnd worĸιng ғιne wιтн a pιng oғ\n➥ `{ms}` ms\n\n<b>|| мαdє ωιтн ❣️ ву [ᴅᴇᴠ](https://t.me/{OWNER_USERNAME}) ||</b>",
-        reply_markup=InlineKeyboardMarkup(PNG_BTN),
+        reply_markup=InlineKeyboardMarkup(DEV_OP),
     )
     if message.chat.type == ChatType.PRIVATE:
         await add_served_user(message.from_user.id)
