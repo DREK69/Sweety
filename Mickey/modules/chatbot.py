@@ -30,9 +30,10 @@ LAST_REPLY_TIME = {}
 LAST_RESPONSE = {}
 
 
-def is_command(text: str) -> bool:
+def is_command(text) -> bool:
     if not text:
         return False
+    text = str(text)
     return text[0] in "!/?@#"
 
 
@@ -41,7 +42,7 @@ def reactions_enabled(chat_id: int) -> bool:
 
 
 def normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", text.strip()).lower()
+    return re.sub(r"\s+", " ", str(text).strip()).lower()
 
 
 def build_lookup_query(text: str, chat_id: int, chat_scoped: bool) -> dict:
@@ -125,13 +126,22 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
         return
 
     query = build_lookup_query(message.text, message.chat.id, chat_scoped)
-    matches = list(chatai.find(query))
+    matches = await asyncio.to_thread(lambda: list(chatai.find(query).limit(30)))
     if not matches:
         return
 
     last_response = LAST_RESPONSE.get(message.chat.id)
     pool = [m for m in matches if m["response"] != last_response] or matches
-    pick = random.choice(pool)
+    random.shuffle(pool)
+
+    pick = None
+    for candidate in pool[:5]:
+        if not await is_toxic(candidate["response"]):
+            pick = candidate
+            break
+
+    if not pick:
+        return
 
     delay = min(0.4 + len(pick["response"]) * 0.03, 3.0)
     await client.send_chat_action(message.chat.id, ChatAction.TYPING)
