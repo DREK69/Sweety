@@ -2,12 +2,11 @@ import random
 import re
 import time
 import asyncio
-
 from pymongo import MongoClient, ASCENDING
 from pyrogram import Client, filters
 from pyrogram.enums import ChatAction, ChatMemberStatus as CMS, ChatType
+from pyrogram.errors import FloodWait
 from pyrogram.types import ChatMemberUpdated, InlineKeyboardMarkup, Message
-
 from config import MONGO_URL
 from Mickey import MickeyBot
 from Mickey.database.chats import add_served_chat, remove_served_chat
@@ -30,11 +29,13 @@ LAST_REPLY_TIME = {}
 LAST_RESPONSE = {}
 
 
+COMMAND_PREFIXES = ("!", "/", "?", "@", "#")
+
+
 def is_command(text) -> bool:
     if not text:
         return False
-    text = str(text)
-    return text[0] in "!/?@#"
+    return str(text).startswith(COMMAND_PREFIXES)
 
 
 def reactions_enabled(chat_id: int) -> bool:
@@ -146,12 +147,34 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
     if not pick:
         return
 
-    delay = min(0.4 + len(pick["response"]) * 0.03, 3.0)
-    await client.send_chat_action(message.chat.id, ChatAction.TYPING)
-    await asyncio.sleep(delay)
-    await message.reply_text(pick["response"])
-
+    # Reserve the cooldown slot now, before any network calls. Otherwise two
+    # messages arriving in the same chat milliseconds apart can both pass the
+    # cooldown check above and race each other into a double send.
     LAST_REPLY_TIME[message.chat.id] = time.monotonic()
+
+    delay = min(0.4 + len(pick["response"]) * 0.03, 3.0)
+
+    try:
+        await client.send_chat_action(message.chat.id, ChatAction.TYPING)
+    except Exception:
+        pass
+
+    await asyncio.sleep(delay)
+
+    try:
+        await message.reply_text(pick["response"])
+    except FloodWait as e:
+        wait = e.value or 0
+        if wait > 10:
+            return
+        await asyncio.sleep(wait)
+        try:
+            await message.reply_text(pick["response"])
+        except Exception:
+            return
+    except Exception:
+        return
+
     LAST_RESPONSE[message.chat.id] = pick["response"]
 
     if reactions_enabled(message.chat.id):
@@ -166,8 +189,6 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
     group=5,
 )
 async def auto_reply(client: Client, message: Message):
-    # Skip only when replying to someone else's message.
-    # A reply to the bot's own message should still get an auto-response.
     replied = message.reply_to_message
     if replied and not (replied.from_user and replied.from_user.is_self):
         return
