@@ -166,7 +166,10 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
     group=5,
 )
 async def auto_reply(client: Client, message: Message):
-    if message.reply_to_message:
+    # Skip only when replying to someone else's message.
+    # A reply to the bot's own message should still get an auto-response.
+    replied = message.reply_to_message
+    if replied and not (replied.from_user and replied.from_user.is_self):
         return
     if vick.find_one({"chat_id": message.chat.id}):
         return
@@ -204,3 +207,4 @@ async def on_bot_membership_change(_, cmu: ChatMemberUpdated):
         await remove_served_chat(cmu.chat.id)
     elif status in (CMS.MEMBER, CMS.ADMINISTRATOR):
         await add_served_chat(cmu.chat.id)
+        
