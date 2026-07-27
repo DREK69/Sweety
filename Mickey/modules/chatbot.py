@@ -41,15 +41,8 @@ def reactions_enabled(chat_id: int) -> bool:
     return bool(reactions_db.find_one({"chat_id": chat_id}))
 
 
-def normalize(text: str) -> str:
+def normalize(text) -> str:
     return re.sub(r"\s+", " ", str(text).strip()).lower()
-
-
-def build_lookup_query(text: str, chat_id: int, chat_scoped: bool) -> dict:
-    query = {"norm": normalize(text)}
-    if chat_scoped:
-        query["chat_id"] = chat_id
-    return query
 
 
 @MickeyBot.on_cmd("chatbot")
@@ -125,21 +118,31 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
     if now - LAST_REPLY_TIME.get(message.chat.id, 0) < COOLDOWN_SECONDS:
         return
 
-    query = build_lookup_query(message.text, message.chat.id, chat_scoped)
-    matches = await asyncio.to_thread(lambda: list(chatai.find(query).limit(30)))
+    norm = normalize(message.text)
+
+    if chat_scoped:
+        matches = await asyncio.to_thread(
+            lambda: list(chatai.find({"norm": norm, "chat_id": message.chat.id}).limit(30))
+        )
+        if not matches:
+            matches = await asyncio.to_thread(
+                lambda: list(chatai.find({"norm": norm, "chat_id": None}).limit(30))
+            )
+    else:
+        matches = await asyncio.to_thread(
+            lambda: list(chatai.find({"norm": norm}).limit(30))
+        )
+
     if not matches:
         return
 
     last_response = LAST_RESPONSE.get(message.chat.id)
     pool = [m for m in matches if m["response"] != last_response] or matches
     random.shuffle(pool)
+    candidates = pool[:5]
 
-    pick = None
-    for candidate in pool[:5]:
-        if not await is_toxic(candidate["response"]):
-            pick = candidate
-            break
-
+    toxic_flags = await asyncio.gather(*(is_toxic(c["response"]) for c in candidates))
+    pick = next((c for c, flag in zip(candidates, toxic_flags) if not flag), None)
     if not pick:
         return
 
