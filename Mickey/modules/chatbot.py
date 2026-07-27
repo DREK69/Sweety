@@ -3,7 +3,7 @@ import re
 import time
 import asyncio
 
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
 from pyrogram import Client, filters
 from pyrogram.enums import ChatAction, ChatMemberStatus as CMS, ChatType
 from pyrogram.types import ChatMemberUpdated, InlineKeyboardMarkup, Message
@@ -19,6 +19,9 @@ _mongo = MongoClient(MONGO_URL)
 chatai = _mongo["Word"]["WordDb"]
 vick = _mongo["VickDb"]["Vick"]
 reactions_db = _mongo["Reactions"]["ReactionsDb"]
+
+chatai.create_index("norm")
+chatai.create_index([("chat_id", ASCENDING), ("norm", ASCENDING)])
 
 REACTION_EMOJIS = ["❤️", "🔥", "😁", "👍", "😂", "😮"]
 COOLDOWN_SECONDS = 3
@@ -38,13 +41,11 @@ def reactions_enabled(chat_id: int) -> bool:
 
 
 def normalize(text: str) -> str:
-    return re.sub(r"\s+", " ", text.strip())
+    return re.sub(r"\s+", " ", text.strip()).lower()
 
 
-def build_trigger_query(text: str, chat_id: int, chat_scoped: bool) -> dict:
-    tokens = [re.escape(tok) for tok in normalize(text).split(" ")]
-    pattern = "^" + r"\s+".join(tokens) + "$"
-    query = {"trigger": {"$regex": pattern, "$options": "i"}}
+def build_lookup_query(text: str, chat_id: int, chat_scoped: bool) -> dict:
+    query = {"norm": normalize(text)}
     if chat_scoped:
         query["chat_id"] = chat_id
     return query
@@ -106,7 +107,12 @@ async def teach_reply(client: Client, message: Message):
     )
     if not exists:
         chatai.insert_one(
-            {"chat_id": message.chat.id, "trigger": trigger, "response": response}
+            {
+                "chat_id": message.chat.id,
+                "trigger": trigger,
+                "response": response,
+                "norm": normalize(trigger),
+            }
         )
 
 
@@ -118,7 +124,7 @@ async def _lookup_and_respond(client: Client, message: Message, chat_scoped: boo
     if now - LAST_REPLY_TIME.get(message.chat.id, 0) < COOLDOWN_SECONDS:
         return
 
-    query = build_trigger_query(message.text, message.chat.id, chat_scoped)
+    query = build_lookup_query(message.text, message.chat.id, chat_scoped)
     matches = list(chatai.find(query))
     if not matches:
         return
